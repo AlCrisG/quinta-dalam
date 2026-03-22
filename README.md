@@ -39,7 +39,7 @@ Sigue estos pasos para correr el proyecto en tu máquina local:
    # o si usas Create React App: npm start
    ```
 
-## 📂 Estructura Destacada
+## Estructura Destacada
 
 - `src/data/`: Lógica de simulación de base de datos (`habitaciones.js`, `usuarios.js`).
 - `src/pages/`: Componentes que actúan como vistas principales (p. ej. `Nosotros.jsx`, `AgregarHabitacion.jsx`).
