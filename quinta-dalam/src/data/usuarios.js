@@ -62,3 +62,8 @@ export const updateUser = (updatedUser) => {
   }
   return false;
 };
+
+// Guardar todos los usuarios (útil para el CRUD del panel de administración)
+export const saveUsuarios = (usuarios) => {
+  localStorage.setItem('hotel_usuarios', JSON.stringify(usuarios));
+};

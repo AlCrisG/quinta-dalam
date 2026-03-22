@@ -1,25 +1,75 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getHabitaciones } from '../data/habitaciones';
-import { getCurrentUser } from '../data/usuarios'; 
+import { getReservaciones } from '../data/reservaciones';
 import { useEffect } from 'react';
 
 export default function Habitaciones() {
   const [habitaciones] = useState(() => getHabitaciones());
   const [busqueda, setBusqueda] = useState(''); 
-  const usuarioActual = getCurrentUser(); 
+  const [fechaEntrada, setFechaEntrada] = useState('');
+  const [fechaSalida, setFechaSalida] = useState('');
+  const [filtrosFechas, setFiltrosFechas] = useState({ entrada: '', salida: '' });
 
   useEffect(() => {
       window.scrollTo(0, 0);
     }, []);
 
-  const habitacionesFiltradas = habitaciones.filter((hab) => 
-    hab.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const reservaciones = getReservaciones();
+
+  // Calculamos la fecha de hoy para restringir los calendarios
+  const fechaActual = new Date();
+  const yyyy = fechaActual.getFullYear();
+  const mm = String(fechaActual.getMonth() + 1).padStart(2, '0');
+  const dd = String(fechaActual.getDate()).padStart(2, '0');
+  const hoy = `${yyyy}-${mm}-${dd}`;
+
+  const habitacionesFiltradas = habitaciones.filter((hab) => {
+    // 1. Filtro por nombre de habitación (en vivo)
+    const coincideTexto = hab.nombre.toLowerCase().includes(busqueda.toLowerCase());
+    if (!coincideTexto) return false;
+
+    // 2. Filtro por disponibilidad de fechas (se aplica al presionar Buscar)
+    if (filtrosFechas.entrada && filtrosFechas.salida) {
+      const inDate = new Date(filtrosFechas.entrada);
+      const outDate = new Date(filtrosFechas.salida);
+      
+      const estaOcupada = reservaciones.some(res => {
+        if (res.habitacionId !== hab.id) return false;
+        if (res.estado === 'Cancelada') return false; // Las canceladas no ocupan lugar
+        const resEntrada = new Date(res.fechaEntrada);
+        const resSalida = new Date(res.fechaSalida);
+        // Hay cruce si la entrada solicitada es menor a la salida de la reserva y la salida solicitada es mayor a la entrada de la reserva
+        return inDate < resSalida && outDate > resEntrada;
+      });
+
+      if (estaOcupada) return false;
+    }
+
+    return true;
+  });
 
   const handleBuscarFechas = (e) => {
     e.preventDefault();
+    if (fechaEntrada && fechaSalida) {
+      if (new Date(fechaEntrada) >= new Date(fechaSalida)) {
+        return alert('La fecha de Check-out debe ser posterior a la de Check-in.');
+      }
+    } else if (fechaEntrada || fechaSalida) {
+      return alert('Por favor, selecciona tanto el Check-in como el Check-out para buscar disponibilidad.');
+    }
+    setFiltrosFechas({ entrada: fechaEntrada, salida: fechaSalida });
   };
+
+  // Función para restablecer los estados
+  const handleLimpiarFiltros = () => {
+    setBusqueda('');
+    setFechaEntrada('');
+    setFechaSalida('');
+    setFiltrosFechas({ entrada: '', salida: '' });
+  };
+
+  const hayFiltrosActivos = busqueda.trim() !== '' || (filtrosFechas.entrada && filtrosFechas.salida);
 
   return (
     <div className="py-16 px-5 flex flex-col items-center relative">
@@ -44,12 +94,24 @@ export default function Habitaciones() {
 
           <div className="flex flex-col w-full md:w-auto">
             <label className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">Check-in</label>
-            <input type="date" className="border-b-2 border-gray-200 p-2 focus:border-brand-primary outline-none transition-colors w-full text-gray-600 bg-transparent" />
+            <input 
+              type="date" 
+              min={hoy}
+              value={fechaEntrada}
+              onChange={(e) => setFechaEntrada(e.target.value)}
+              className="border-b-2 border-gray-200 p-2 focus:border-brand-primary outline-none transition-colors w-full text-gray-600 bg-transparent" 
+            />
           </div>
 
           <div className="flex flex-col w-full md:w-auto">
             <label className="text-xs uppercase tracking-wider font-semibold text-gray-500 mb-2">Check-out</label>
-            <input type="date" className="border-b-2 border-gray-200 p-2 focus:border-brand-primary outline-none transition-colors w-full text-gray-600 bg-transparent" />
+            <input 
+              type="date" 
+              min={fechaEntrada || hoy}
+              value={fechaSalida}
+              onChange={(e) => setFechaSalida(e.target.value)}
+              className="border-b-2 border-gray-200 p-2 focus:border-brand-primary outline-none transition-colors w-full text-gray-600 bg-transparent" 
+            />
           </div>
 
           <button type="submit" className="bg-brand-primary hover:bg-brand-secondary text-white px-8 py-3 rounded-lg font-bold uppercase text-sm tracking-wider shadow-md hover:shadow-xl transition-all w-full md:w-auto mt-4 md:mt-0">
@@ -58,11 +120,23 @@ export default function Habitaciones() {
         </form>
       </div>
 
-      {usuarioActual?.rol === 'admin' && (
-        <div className="w-full max-w-6xl flex justify-end mb-8">
-          <Link to="/agregar_habitacion" className="bg-gray-800 hover:bg-black text-white font-bold py-2 px-6 rounded-lg shadow-md transition-colors text-sm uppercase tracking-wider">
-            + Agregar Habitación
-          </Link>
+      {/* Feedback de Filtros Activos */}
+      {hayFiltrosActivos && (
+        <div className="w-full max-w-6xl mb-8 flex flex-col sm:flex-row justify-between items-center bg-brand-primary/10 px-6 py-4 rounded-xl border border-brand-primary/20 animate-fade-in">
+          <span className="text-gray-700 text-sm font-medium mb-3 sm:mb-0 text-center sm:text-left">
+            Mostrando <span className="font-bold text-brand-primary">{habitacionesFiltradas.length}</span> {habitacionesFiltradas.length === 1 ? 'resultado' : 'resultados'} para tu búsqueda.
+          </span>
+          <button onClick={handleLimpiarFiltros} className="text-xs font-bold text-red-500 hover:text-red-700 hover:underline transition-colors uppercase tracking-widest cursor-pointer">
+            Limpiar Filtros ✖
+          </button>
+        </div>
+      )}
+
+      {/* Mensaje de 0 resultados */}
+      {habitacionesFiltradas.length === 0 && (
+        <div className="w-full max-w-6xl text-center py-10 animate-fade-in">
+          <h3 className="text-2xl font-bold text-gray-800 mb-3">No hay habitaciones disponibles</h3>
+          <p className="text-gray-500">Prueba cambiando las fechas o el término de búsqueda.</p>
         </div>
       )}
 

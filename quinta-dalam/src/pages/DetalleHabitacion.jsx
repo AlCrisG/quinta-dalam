@@ -1,27 +1,61 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { getHabitaciones, saveHabitaciones } from '../data/habitaciones';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { getHabitaciones } from '../data/habitaciones';
 import { getCurrentUser } from '../data/usuarios';
 import { getReservaciones, saveReservaciones } from '../data/reservaciones';
 
 export default function DetalleHabitacion() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams(); 
   const [isVisible, setIsVisible] = useState(false);
   const [fechaEntrada, setFechaEntrada] = useState('');
   const [fechaSalida, setFechaSalida] = useState('');
+  const [metodoPago, setMetodoPago] = useState('');
+  const [noches, setNoches] = useState(0);
+  const [totalEstimado, setTotalEstimado] = useState(0);
+  const hasAutoBooked = useRef(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     
     // Activamos la animación de entrada después de montar el componente
     const timer = setTimeout(() => setIsVisible(true), 50);
+
+    // Interceptamos la auto-reservación cuando el usuario regrese del login
+    if (usuarioActual && location.state?.autoBook && !hasAutoBooked.current) {
+      hasAutoBooked.current = true;
+      const { fechaEntrada: inDate, fechaSalida: outDate, metodoPago: method } = location.state;
+      setFechaEntrada(inDate);
+      setFechaSalida(outDate);
+      setMetodoPago(method);
+      setTimeout(() => procesarReserva(inDate, outDate, method), 100);
+    }
+
     return () => clearTimeout(timer);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Dependencias vacías para asegurar que solo ocurra en la carga inicial
   
   const habitacionesGuardadas = getHabitaciones();
   const habitacion = habitacionesGuardadas.find(hab => hab.id === parseInt(id));
   const usuarioActual = getCurrentUser();
+
+  // Efecto para calcular dinámicamente las noches y el total estimado
+  useEffect(() => {
+    if (fechaEntrada && fechaSalida && habitacion) {
+      const inDate = new Date(fechaEntrada);
+      const outDate = new Date(fechaSalida);
+      if (outDate > inDate) {
+        const diffDays = Math.ceil((outDate - inDate) / (1000 * 60 * 60 * 24));
+        setNoches(diffDays);
+        const precioNum = Number(habitacion.precio.replace(/[^0-9.-]+/g, ""));
+        setTotalEstimado(diffDays * precioNum);
+        return;
+      }
+    }
+    setNoches(0);
+    setTotalEstimado(0);
+  }, [fechaEntrada, fechaSalida, habitacion]);
 
   // Obtenemos la fecha de hoy en formato YYYY-MM-DD para limitar los calendarios
   const fechaActual = new Date();
@@ -39,70 +73,77 @@ export default function DetalleHabitacion() {
     );
   }
 
-  const handleEliminar = () => {
-    if(window.confirm(`¿Estás seguro de que deseas eliminar la habitación ${habitacion.nombre}?`)) {
-      const nuevasHabitaciones = habitacionesGuardadas.filter(hab => hab.id !== habitacion.id);
-      saveHabitaciones(nuevasHabitaciones);
-      alert('Habitación eliminada exitosamente');
-      navigate('/habitaciones');
-    }
-  };
+  const procesarReserva = (inStr, outStr, methodStr) => {
+    const handleFailure = (msg) => {
+      alert(msg);
+      navigate(location.pathname, { replace: true, state: {} }); // Limpiamos rastro si falla
+    };
 
-  const handleReservar = () => {
-    // Si no está iniciada la sesión, lo mandamos al login
-    if (!usuarioActual) {
-      navigate('/login');
-      return;
-    }
-    if (!fechaEntrada || !fechaSalida) {
-      alert('Por favor selecciona tus fechas de Check-in y Check-out.');
-      return;
-    }
+    if (!inStr || !outStr) return handleFailure('Por favor selecciona tus fechas de Check-in y Check-out.');
+    if (!methodStr) return handleFailure('Por favor selecciona un método de pago.');
     
-    const entrada = new Date(fechaEntrada);
-    const salida = new Date(fechaSalida);
+    const entrada = new Date(inStr);
+    const salida = new Date(outStr);
     
-    if (entrada >= salida) {
-      alert('La fecha de Check-out debe ser posterior a la de Check-in.');
-      return;
-    }
-    
-    // Validar por seguridad que no reserve en el pasado
-    const fechaHoyObj = new Date(hoy);
-    if (entrada < fechaHoyObj) {
-      alert('No puedes reservar en fechas que ya pasaron.');
-      return;
-    }
+    if (entrada >= salida) return handleFailure('La fecha de Check-out debe ser posterior a la de Check-in.');
+    if (entrada < new Date(hoy)) return handleFailure('No puedes reservar en fechas que ya pasaron.');
 
     const reservaciones = getReservaciones();
     
     // Validar disponibilidad buscando choques de fechas
     const estaOcupada = reservaciones.some(res => {
       if (res.habitacionId !== habitacion.id) return false;
+      if (res.estado === 'Cancelada') return false; 
       const resEntrada = new Date(res.fechaEntrada);
       const resSalida = new Date(res.fechaSalida);
       return entrada < resSalida && salida > resEntrada;
     });
 
-    if (estaOcupada) {
-      alert('Lo sentimos, la habitación ya está ocupada en esas fechas. Por favor, elige otras.');
-      return;
-    }
+    if (estaOcupada) return handleFailure('Lo sentimos, la habitación ya está ocupada en esas fechas. Por favor, elige otras.');
+
+    // Cálculo del total para guardarlo en la base de datos
+    const diffDays = Math.ceil((salida - entrada) / (1000 * 60 * 60 * 24));
+    const precioNum = Number(habitacion.precio.replace(/[^0-9.-]+/g, ""));
+    const totalFinal = diffDays * precioNum;
 
     const nuevaReserva = {
       id: reservaciones.length > 0 ? Math.max(...reservaciones.map(r => r.id)) + 1 : 1,
       usuarioId: usuarioActual.id,
       habitacionId: habitacion.id,
       habitacion: habitacion.nombre,
-      fechaEntrada,
-      fechaSalida,
+      fechaEntrada: inStr,
+      fechaSalida: outStr,
       estado: 'Confirmada',
-      total: habitacion.precio 
+      metodoPago: methodStr,
+      total: `$${totalFinal.toLocaleString('en-US')}` 
     };
 
     saveReservaciones([...reservaciones, nuevaReserva]);
     alert('¡Tu reserva ha sido confirmada exitosamente!');
-    navigate('/mi_cuenta');
+    navigate('/mi_cuenta', { replace: true, state: { activeTab: 'reservaciones' } });
+  };
+
+  const handleReservar = () => {
+    if (!fechaEntrada || !fechaSalida) {
+      return alert('Por favor selecciona tus fechas de Check-in y Check-out.');
+    }
+    if (!metodoPago) {
+      return alert('Por favor selecciona un método de pago.');
+    }
+    // Si no está iniciada la sesión, lo mandamos al login guardando su intención de reserva en memoria
+    if (!usuarioActual) {
+      navigate('/login', { 
+        state: { 
+          from: `/detalle_habitacion/${id}`, 
+          fechaEntrada, 
+          fechaSalida, 
+          metodoPago,
+          autoBook: true 
+        } 
+      });
+      return;
+    }
+    procesarReserva(fechaEntrada, fechaSalida, metodoPago);
   };
 
   return (
@@ -162,20 +203,27 @@ export default function DetalleHabitacion() {
                     <input type="date" min={fechaEntrada || hoy} value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-brand-primary bg-white transition-colors" />
                   </div>
                 </div>
-                <button onClick={handleReservar} className="mt-2 bg-brand-primary hover:bg-brand-secondary text-white text-center font-bold rounded-lg py-4 uppercase tracking-widest text-sm shadow-lg hover:shadow-xl transition-all">
-                  Confirmar Reserva
-                </button>
-              </div>
-            )}
 
-            {/* Botones de Admin */}
-            {usuarioActual?.rol === 'admin' && (
-              <div className="flex gap-4 pt-4 border-t border-gray-100">
-                <Link to={`/editar_habitacion/${habitacion.id}`} className="flex-1 text-center bg-white border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-white font-bold rounded-lg py-3 uppercase tracking-wider text-xs transition-all">
-                  Editar
-                </Link>
-                <button onClick={handleEliminar} className="flex-1 bg-white border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold rounded-lg py-3 uppercase tracking-wider text-xs transition-all">
-                  Eliminar
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-gray-500 mb-1">Método de Pago</label>
+                  <select value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-brand-primary bg-white transition-colors">
+                    <option value="">Selecciona un método</option>
+                    <option value="Tarjeta de Crédito/Débito">Tarjeta de Crédito/Débito</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Efectivo en Recepción">Efectivo en Recepción</option>
+                  </select>
+                </div>
+
+                {noches > 0 && (
+                  <div className="flex justify-between items-center bg-brand-primary/10 p-3 rounded-lg border border-brand-primary/20">
+                    <span className="text-sm text-gray-700">Total por {noches} {noches === 1 ? 'noche' : 'noches'}:</span>
+                    <span className="font-bold text-brand-primary text-lg">${totalEstimado.toLocaleString('en-US')}</span>
+                  </div>
+                )}
+
+                <button onClick={handleReservar} className="bg-brand-primary hover:bg-brand-secondary text-white text-center font-bold rounded-lg py-4 uppercase tracking-widest text-sm shadow-lg hover:shadow-xl transition-all mt-2">
+                  Confirmar Reserva
                 </button>
               </div>
             )}

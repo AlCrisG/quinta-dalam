@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getCurrentUser, logoutUser, updateUser } from '../data/usuarios';
 import { getReservacionesUsuario } from '../data/reservaciones';
 
 export default function MiCuenta() {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // 1. Inicializamos el estado sincrónicamente desde el LocalStorage
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
-  const [activeTab, setActiveTab] = useState('perfil'); // 'perfil', 'reservaciones', 'pagos'
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'perfil'); // 'perfil', 'reservaciones', 'pagos'
   
   const tabsRef = useRef(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -240,7 +241,7 @@ export default function MiCuenta() {
                     <p className="font-bold text-brand-primary">{res.habitacion}</p>
                     <p className="text-sm text-gray-600">Entrada: {res.fechaEntrada} | Salida: {res.fechaSalida}</p>
                     <p className="text-sm text-gray-600">Estado: <span className={`font-semibold ${res.estado === 'Confirmada' ? 'text-green-600' : 'text-yellow-600'}`}>{res.estado}</span></p>
-                    <p className="text-sm text-gray-600">Total: {res.total}</p>
+                    <p className="text-sm text-gray-600">Total: <span className="font-bold">{res.total}</span> {res.metodoPago && `(Vía ${res.metodoPago})`}</p>
                     <button className="mt-2 text-xs text-blue-600 hover:underline">Ver Detalles</button>
                   </div>
                 ))}

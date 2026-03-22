@@ -23,7 +23,7 @@ export default function AgregarHabitacion() {
     const nuevaHabitacion = {
       id: nuevoId,
       nombre: formData.nombre,
-      precio: formData.precio.includes('$') ? formData.precio : `$${formData.precio}`,
+      precio: `$${Number(formData.precio).toLocaleString('en-US')}`,
       desc: formData.desc,
       descripcionDetallada: formData.descripcionDetallada || formData.desc,
       capacidad: formData.capacidad,

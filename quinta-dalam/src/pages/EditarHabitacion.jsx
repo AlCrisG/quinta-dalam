@@ -49,7 +49,7 @@ export default function EditarHabitacion() {
         return {
           ...hab,
           nombre: formData.nombre,
-          precio: `$${formData.precio}`,
+          precio: `$${Number(formData.precio).toLocaleString('en-US')}`,
           desc: formData.desc,
           descripcionDetallada: formData.descripcionDetallada,
           capacidad: formData.capacidad,
@@ -61,13 +61,13 @@ export default function EditarHabitacion() {
 
     saveHabitaciones(actualizadas);
     alert('Habitación actualizada con éxito');
-    navigate(`/detalle_habitacion/${id}`);
+    navigate('/admin', { state: { activeTab: 'habitaciones' } });
   };
 
   return (
     <div className="flex flex-col items-center justify-center py-20 px-5 min-h-[80vh] bg-gray-50">
       <div className="flex flex-col items-center p-10 md:p-12 bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-2xl relative">
-        <Link to={`/detalle_habitacion/${id}`} className="absolute top-8 left-8 text-gray-400 hover:text-brand-primary transition-colors text-sm font-bold uppercase tracking-widest">
+        <Link to="/admin" state={{ activeTab: 'habitaciones' }} className="absolute top-8 left-8 text-gray-400 hover:text-brand-primary transition-colors text-sm font-bold uppercase tracking-widest">
           ← Cancelar
         </Link>
 

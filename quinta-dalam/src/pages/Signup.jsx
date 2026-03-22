@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { registrarUsuario } from '../data/usuarios';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     nombre: '', correo: '', contrasena: '', confirmar_contrasena: ''
   });
@@ -26,7 +27,7 @@ export default function Signup() {
     });
     
     alert('Cuenta creada exitosamente. Por favor, inicia sesión.');
-    navigate('/login');
+    navigate('/login', { state: location.state });
   };
 
   return (
@@ -68,7 +69,7 @@ export default function Signup() {
         </form>
         
         <div className="mt-8 border-t border-gray-100 w-full pt-6 text-center">
-          <Link to="/login" className="text-sm text-gray-500 hover:text-brand-primary font-medium transition-colors">
+          <Link to="/login" state={location.state} className="text-sm text-gray-500 hover:text-brand-primary font-medium transition-colors">
             ¿Ya tienes una cuenta? <span className="font-bold underline">Inicia sesión aquí</span>
           </Link>
         </div>

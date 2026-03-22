@@ -70,7 +70,11 @@ export default function Layout() {
           
           {usuario ? (
             <>
-              <Link to="/mi_cuenta" className={getLinkClass("/mi_cuenta")}>Mi Cuenta</Link>
+              {usuario.rol === 'admin' ? (
+                <Link to="/admin" className={getLinkClass("/admin")}>Panel Admin</Link>
+              ) : (
+                <Link to="/mi_cuenta" className={getLinkClass("/mi_cuenta")}>Mi Cuenta</Link>
+              )}
               <div className="flex items-center h-full relative z-10">
                 <button onClick={handleLogout} className="px-5 h-full flex items-center text-center text-white/90 hover:text-white transition-all duration-300 hover:bg-red-700 cursor-pointer font-bold text-sm uppercase">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 mr-2">
@@ -81,7 +85,7 @@ export default function Layout() {
               </div>
             </>
           ) : (
-            <Link to="/login" className={getLinkClass("/login")}>Cuenta</Link>
+            <Link to="/login" state={{ from: location.pathname }} className={getLinkClass("/login")}>Cuenta</Link>
           )}
         </nav>
       </header>

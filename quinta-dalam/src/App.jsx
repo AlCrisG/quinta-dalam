@@ -13,6 +13,7 @@ import DetalleHabitacion from './pages/DetalleHabitacion';
 import AgregarHabitacion from './pages/AgregarHabitacion';
 import EditarHabitacion from './pages/EditarHabitacion';
 import MiCuenta from './pages/MiCuenta';
+import AdminPanel from './pages/AdminPanel';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="agregar_habitacion" element={<AgregarHabitacion />} />
           <Route path="editar_habitacion/:id" element={<EditarHabitacion />} />
           <Route path="mi_cuenta" element={<MiCuenta />} />
+          <Route path="admin" element={<AdminPanel />} />
           
         </Route>
       </Routes>

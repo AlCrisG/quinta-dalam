@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, getCurrentUser, logoutUser } from '../data/usuarios';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const usuarioActual = getCurrentUser(); // Verificamos si ya hay alguien logueado
   const [credenciales, setCredenciales] = useState({ correo: '', contrasena: '' });
 
@@ -16,7 +17,14 @@ export default function Login() {
     const exito = loginUser(credenciales.correo, credenciales.contrasena);
     
     if (exito) {
-      navigate('/habitaciones'); 
+      const user = getCurrentUser();
+      // Si es admin, forzamos que siempre vaya a su panel en lugar de la habitación donde estaba
+      if (user.rol === 'admin') {
+        navigate('/admin');
+      } else {
+        const redirectTo = location.state?.from || '/habitaciones';
+        navigate(redirectTo, { state: location.state }); // Pasamos el estado (por si trae reserva pendiente)
+      }
     } else {
       alert('Correo o contraseña incorrectos.');
     }
@@ -39,8 +47,8 @@ export default function Login() {
             Ya tienes una sesión activa como <strong className="uppercase font-bold text-brand-primary">{usuarioActual.rol}</strong>.
           </p>
           
-          <Link to="/habitaciones" className="bg-brand-primary hover:bg-brand-secondary text-white font-bold rounded-lg py-3 px-8 mb-4 uppercase tracking-wider text-xs shadow-md hover:shadow-lg transition-all w-full">
-            Ir a Habitaciones
+          <Link to={usuarioActual.rol === 'admin' ? '/admin' : '/habitaciones'} className="bg-brand-primary hover:bg-brand-secondary text-white font-bold rounded-lg py-3 px-8 mb-4 uppercase tracking-wider text-xs shadow-md hover:shadow-lg transition-all w-full">
+            {usuarioActual.rol === 'admin' ? 'Ir al Panel Admin' : 'Ir a Habitaciones'}
           </Link>
           
           {/* Aquí es donde se usa el handleLogout */}
@@ -82,7 +90,7 @@ export default function Login() {
         </form>
         
         <div className="mt-8 border-t border-gray-100 w-full pt-6 text-center">
-          <Link to="/signup" className="text-sm text-gray-500 hover:text-brand-primary font-medium transition-colors">
+          <Link to="/signup" state={location.state} className="text-sm text-gray-500 hover:text-brand-primary font-medium transition-colors">
             ¿Aún no tienes una cuenta? <span className="font-bold underline">Regístrate aquí</span>
           </Link>
         </div>
