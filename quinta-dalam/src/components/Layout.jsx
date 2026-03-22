@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentUser, logoutUser } from '../data/usuarios';
 
@@ -5,10 +6,41 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const usuario = getCurrentUser();
+  const navRef = useRef(null);
+  const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, opacity: 0 });
+
+  // Efecto para animar el indicador activo (fondo deslizante)
+  useEffect(() => {
+    const updateIndicator = () => {
+      if (navRef.current) {
+        const activeEl = navRef.current.querySelector('.active-nav-item');
+        if (activeEl) {
+          setIndicatorStyle({
+            left: activeEl.offsetLeft,
+            width: activeEl.offsetWidth,
+            opacity: 1,
+          });
+        } else {
+          setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
+        }
+      }
+    };
+
+    // Timeout pequeño para asegurar que el DOM se haya renderizado antes de medir
+    const timeoutId = setTimeout(updateIndicator, 50);
+    window.addEventListener('resize', updateIndicator);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updateIndicator);
+    };
+  }, [location.pathname, usuario]);
 
   const getLinkClass = (path) => {
-    const baseClass = "px-5 py-7 text-center text-white/90 hover:text-white transition-all duration-300 hover:bg-brand-secondary font-medium tracking-wide text-sm uppercase";
-    return location.pathname === path ? `${baseClass} bg-brand-secondary text-white` : baseClass;
+    const isActive = location.pathname === path;
+    const baseClass = "relative z-10 px-5 h-full flex items-center text-center text-white/90 hover:text-white transition-colors duration-300 font-medium tracking-wide text-sm uppercase";
+    // Si está activo añadimos un identificador, si no, un hover sutil en blanco para que no colisione con el color activo
+    return isActive ? `${baseClass} active-nav-item text-white` : `${baseClass} hover:bg-white/10`;
   };
 
   const handleLogout = () => {
@@ -19,26 +51,35 @@ export default function Layout() {
   return (
     <>
       {/* NAVBAR */}
-      <header className="fixed top-0 left-0 w-full z-50 bg-brand-primary text-white flex justify-between items-center px-6 h-20 shadow-lg">
+      <header className="fixed top-0 left-0 w-full z-50 text-white flex justify-between items-center px-6 h-20 bg-brand-primary shadow-lg">
         <Link to="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity">
           <img src="/img/favicon.png" alt="Logo" className="h-11.25" />
           <h1 className="text-2xl font-bold m-0 hidden md:block tracking-wide text-white">Quinta Dalam</h1>
         </Link>
         
-        <nav className="flex h-full items-center">
+        <nav ref={navRef} className="flex h-full items-center relative">
+          {/* Indicador animado del menú activo */}
+          <div
+            className="absolute top-0 bottom-0 bg-brand-secondary transition-all duration-500 ease-in-out z-0"
+            style={{ left: indicatorStyle.left, width: indicatorStyle.width, opacity: indicatorStyle.opacity }}
+          />
+
           <Link to="/" className={getLinkClass("/")}>Inicio</Link>
           <Link to="/habitaciones" className={getLinkClass("/habitaciones")}>Habitaciones</Link>
           <Link to="/nosotros" className={getLinkClass("/nosotros")}>Nosotros</Link>
           
           {usuario ? (
-            <div className="flex items-center h-full">
-              <span className="px-4 font-medium text-yellow-400 hidden sm:block text-sm">
-                Hola, {usuario.nombre}
-              </span>
-              <button onClick={handleLogout} className="px-5 py-7 text-center text-white/90 hover:text-white transition-all duration-300 hover:bg-red-700 cursor-pointer font-bold text-sm uppercase">
-                Salir
-              </button>
-            </div>
+            <>
+              <Link to="/mi_cuenta" className={getLinkClass("/mi_cuenta")}>Mi Cuenta</Link>
+              <div className="flex items-center h-full relative z-10">
+                <button onClick={handleLogout} className="px-5 h-full flex items-center text-center text-white/90 hover:text-white transition-all duration-300 hover:bg-red-700 cursor-pointer font-bold text-sm uppercase">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 mr-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                  </svg>
+                  <span>Salir</span>
+                </button>
+              </div>
+            </>
           ) : (
             <Link to="/login" className={getLinkClass("/login")}>Cuenta</Link>
           )}

@@ -43,3 +43,22 @@ export const getCurrentUser = () => {
 export const logoutUser = () => {
   localStorage.removeItem('hotel_sesion');
 };
+
+// Actualizar información de un usuario
+export const updateUser = (updatedUser) => {
+  const usuarios = getUsuarios();
+  const index = usuarios.findIndex(u => u.id === updatedUser.id);
+  
+  if (index !== -1) {
+    usuarios[index] = updatedUser;
+    localStorage.setItem('hotel_usuarios', JSON.stringify(usuarios));
+    
+    // Si el usuario actualizado es el que tiene la sesión iniciada, también actualizamos la sesión
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === updatedUser.id) {
+      localStorage.setItem('hotel_sesion', JSON.stringify(updatedUser));
+    }
+    return true;
+  }
+  return false;
+};

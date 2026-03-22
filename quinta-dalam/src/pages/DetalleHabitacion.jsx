@@ -1,19 +1,34 @@
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getHabitaciones, saveHabitaciones } from '../data/habitaciones';
 import { getCurrentUser } from '../data/usuarios';
-import { useEffect } from 'react';
+import { getReservaciones, saveReservaciones } from '../data/reservaciones';
 
 export default function DetalleHabitacion() {
   const navigate = useNavigate();
   const { id } = useParams(); 
+  const [isVisible, setIsVisible] = useState(false);
+  const [fechaEntrada, setFechaEntrada] = useState('');
+  const [fechaSalida, setFechaSalida] = useState('');
 
-    useEffect(() => {
-      window.scrollTo(0, 0);
-    }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    
+    // Activamos la animación de entrada después de montar el componente
+    const timer = setTimeout(() => setIsVisible(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
   
   const habitacionesGuardadas = getHabitaciones();
   const habitacion = habitacionesGuardadas.find(hab => hab.id === parseInt(id));
   const usuarioActual = getCurrentUser();
+
+  // Obtenemos la fecha de hoy en formato YYYY-MM-DD para limitar los calendarios
+  const fechaActual = new Date();
+  const yyyy = fechaActual.getFullYear();
+  const mm = String(fechaActual.getMonth() + 1).padStart(2, '0');
+  const dd = String(fechaActual.getDate()).padStart(2, '0');
+  const hoy = `${yyyy}-${mm}-${dd}`;
 
   if (!habitacion) {
     return (
@@ -33,8 +48,65 @@ export default function DetalleHabitacion() {
     }
   };
 
+  const handleReservar = () => {
+    // Si no está iniciada la sesión, lo mandamos al login
+    if (!usuarioActual) {
+      navigate('/login');
+      return;
+    }
+    if (!fechaEntrada || !fechaSalida) {
+      alert('Por favor selecciona tus fechas de Check-in y Check-out.');
+      return;
+    }
+    
+    const entrada = new Date(fechaEntrada);
+    const salida = new Date(fechaSalida);
+    
+    if (entrada >= salida) {
+      alert('La fecha de Check-out debe ser posterior a la de Check-in.');
+      return;
+    }
+    
+    // Validar por seguridad que no reserve en el pasado
+    const fechaHoyObj = new Date(hoy);
+    if (entrada < fechaHoyObj) {
+      alert('No puedes reservar en fechas que ya pasaron.');
+      return;
+    }
+
+    const reservaciones = getReservaciones();
+    
+    // Validar disponibilidad buscando choques de fechas
+    const estaOcupada = reservaciones.some(res => {
+      if (res.habitacionId !== habitacion.id) return false;
+      const resEntrada = new Date(res.fechaEntrada);
+      const resSalida = new Date(res.fechaSalida);
+      return entrada < resSalida && salida > resEntrada;
+    });
+
+    if (estaOcupada) {
+      alert('Lo sentimos, la habitación ya está ocupada en esas fechas. Por favor, elige otras.');
+      return;
+    }
+
+    const nuevaReserva = {
+      id: reservaciones.length > 0 ? Math.max(...reservaciones.map(r => r.id)) + 1 : 1,
+      usuarioId: usuarioActual.id,
+      habitacionId: habitacion.id,
+      habitacion: habitacion.nombre,
+      fechaEntrada,
+      fechaSalida,
+      estado: 'Confirmada',
+      total: habitacion.precio 
+    };
+
+    saveReservaciones([...reservaciones, nuevaReserva]);
+    alert('¡Tu reserva ha sido confirmada exitosamente!');
+    navigate('/mi_cuenta');
+  };
+
   return (
-    <div className="py-16 px-5 flex justify-center bg-gray-50 min-h-screen">
+    <div className={`py-16 px-5 flex justify-center bg-gray-50 min-h-screen transition-all duration-700 ease-out transform ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
       <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col md:flex-row">
         
         {/* Mitad de Imagen */}
@@ -78,9 +150,22 @@ export default function DetalleHabitacion() {
           <div className="mt-10 flex flex-col gap-4">
             {/* Botón Reservar para clientes */}
             {usuarioActual?.rol !== 'admin' && (
-              <Link to={usuarioActual ? "/habitaciones" : "/login"} className="bg-brand-primary hover:bg-brand-secondary text-white text-center font-bold rounded-lg py-4 uppercase tracking-widest text-sm shadow-lg hover:shadow-xl transition-all">
-                Reservar Ahora
-              </Link>
+              <div className="flex flex-col gap-4 bg-gray-50 p-6 rounded-2xl border border-gray-200 shadow-inner">
+                <h4 className="text-sm uppercase tracking-widest font-bold text-gray-500">Reserva tu estancia</h4>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 flex flex-col">
+                    <label className="text-xs font-semibold text-gray-500 mb-1">Check-in</label>
+                    <input type="date" min={hoy} value={fechaEntrada} onChange={(e) => setFechaEntrada(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-brand-primary bg-white transition-colors" />
+                  </div>
+                  <div className="flex-1 flex flex-col">
+                    <label className="text-xs font-semibold text-gray-500 mb-1">Check-out</label>
+                    <input type="date" min={fechaEntrada || hoy} value={fechaSalida} onChange={(e) => setFechaSalida(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:border-brand-primary bg-white transition-colors" />
+                  </div>
+                </div>
+                <button onClick={handleReservar} className="mt-2 bg-brand-primary hover:bg-brand-secondary text-white text-center font-bold rounded-lg py-4 uppercase tracking-widest text-sm shadow-lg hover:shadow-xl transition-all">
+                  Confirmar Reserva
+                </button>
+              </div>
             )}
 
             {/* Botones de Admin */}

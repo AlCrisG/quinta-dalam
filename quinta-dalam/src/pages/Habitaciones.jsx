@@ -2,11 +2,16 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getHabitaciones } from '../data/habitaciones';
 import { getCurrentUser } from '../data/usuarios'; 
+import { useEffect } from 'react';
 
 export default function Habitaciones() {
   const [habitaciones] = useState(() => getHabitaciones());
   const [busqueda, setBusqueda] = useState(''); 
   const usuarioActual = getCurrentUser(); 
+
+  useEffect(() => {
+      window.scrollTo(0, 0);
+    }, []);
 
   const habitacionesFiltradas = habitaciones.filter((hab) => 
     hab.nombre.toLowerCase().includes(busqueda.toLowerCase())

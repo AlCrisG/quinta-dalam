@@ -12,6 +12,7 @@ import Signup from './pages/Signup';
 import DetalleHabitacion from './pages/DetalleHabitacion';
 import AgregarHabitacion from './pages/AgregarHabitacion';
 import EditarHabitacion from './pages/EditarHabitacion';
+import MiCuenta from './pages/MiCuenta';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="detalle_habitacion/:id" element={<DetalleHabitacion />} />
           <Route path="agregar_habitacion" element={<AgregarHabitacion />} />
           <Route path="editar_habitacion/:id" element={<EditarHabitacion />} />
+          <Route path="mi_cuenta" element={<MiCuenta />} />
           
         </Route>
       </Routes>

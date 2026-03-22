@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getHabitaciones, saveHabitaciones } from '../data/habitaciones';
+import { useEffect } from 'react';
 
 export default function EditarHabitacion() {
   const navigate = useNavigate();
   const { id } = useParams();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   
   // 1. Buscamos la habitación directamente para inicializar el estado
   // Esto evita el uso de useEffect y el error de "cascading renders"
