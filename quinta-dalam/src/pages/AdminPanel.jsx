@@ -9,7 +9,7 @@ export default function AdminPanel() {
   const location = useLocation();
   const currentUser = getCurrentUser();
 
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'reservaciones'); // 'reservaciones', 'habitaciones', 'usuarios'
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'reservaciones'); // 'reservaciones', 'habitaciones', 'usuarios', 'reembolsos'
   
   // Estados de los datos
   const [reservaciones, setReservaciones] = useState(() => currentUser?.rol === 'admin' ? getReservaciones() : []);
@@ -167,6 +167,19 @@ export default function AdminPanel() {
     alert('Usuario actualizado exitosamente.');
   };
 
+  // --- FUNCIONES REEMBOLSOS ---
+  const autorizarReembolso = (id) => {
+    if (!window.confirm('¿Confirmas que se ha realizado la devolución de fondos al cliente?')) return;
+    const actualizadas = reservaciones.map(r => {
+      if (r.id === id && r.reembolso) {
+        return { ...r, reembolso: { ...r.reembolso, estado: 'Aprobado' } };
+      }
+      return r;
+    });
+    setReservaciones(actualizadas);
+    saveReservaciones(actualizadas);
+  };
+
   return (
     <div className="py-20 px-5 bg-gray-50 min-h-[80vh] flex flex-col items-center">
       <div className="w-full max-w-6xl">
@@ -177,7 +190,7 @@ export default function AdminPanel() {
 
         {/* Navegación por pestañas */}
         <div className="flex gap-2 mb-8 border-b border-gray-200">
-          {['reservaciones', 'habitaciones', 'usuarios'].map(tab => (
+          {['reservaciones', 'habitaciones', 'usuarios', 'reembolsos'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -382,6 +395,52 @@ export default function AdminPanel() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* PESTAÑA REEMBOLSOS */}
+        {activeTab === 'reembolsos' && (
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-x-auto animate-fade-in">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+                  <th className="p-4">ID Reserva</th>
+                  <th className="p-4">Cliente / Pago</th>
+                  <th className="p-4">Total Original</th>
+                  <th className="p-4">Penalización</th>
+                  <th className="p-4">A Reembolsar</th>
+                  <th className="p-4">Estado</th>
+                  <th className="p-4 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-gray-100">
+                {reservaciones.filter(r => r.reembolso).length === 0 ? (
+                  <tr><td colSpan="7" className="p-8 text-center text-gray-500 font-medium">No hay reembolsos pendientes ni procesados actualmente.</td></tr>
+                ) : (
+                  reservaciones.filter(r => r.reembolso).map(res => (
+                    <tr key={res.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="p-4 font-bold text-gray-700">#{res.id}</td>
+                      <td className="p-4 text-gray-600">Cli ID: {res.usuarioId} <br/><span className="text-xs font-semibold text-brand-primary">{res.metodoPago}</span></td>
+                      <td className="p-4 text-gray-400 line-through">{res.total}</td>
+                      <td className="p-4 text-red-500 font-semibold">{res.reembolso.penalizacion}</td>
+                      <td className="p-4 font-bold text-green-600">{res.reembolso.monto}</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${res.reembolso.estado === 'Aprobado' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {res.reembolso.estado}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        {res.reembolso.estado === 'Pendiente' ? (
+                          <button onClick={() => autorizarReembolso(res.id)} className="bg-brand-primary text-white px-4 py-2 rounded shadow text-xs font-bold hover:bg-brand-secondary transition-colors uppercase tracking-wider">Autorizar</button>
+                        ) : (
+                          <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Completado</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

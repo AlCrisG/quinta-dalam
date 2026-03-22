@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getCurrentUser, logoutUser, updateUser } from '../data/usuarios';
-import { getReservacionesUsuario } from '../data/reservaciones';
+import { getReservacionesUsuario, getReservaciones, saveReservaciones } from '../data/reservaciones';
 
 export default function MiCuenta() {
   const navigate = useNavigate();
@@ -26,7 +26,10 @@ export default function MiCuenta() {
   const [message, setMessage] = useState('');
 
   // 3. Sistema de reservaciones reales vinculado al LocalStorage
-  const [reservations] = useState(() => getReservacionesUsuario(currentUser?.id));
+  const [reservations, setReservations] = useState(() => getReservacionesUsuario(currentUser?.id));
+
+  // Estado para la ventana modal de detalles de reservación
+  const [selectedReserva, setSelectedReserva] = useState(null);
 
   const paymentMethods = [
     { id: 1, tipo: 'Tarjeta de Crédito', ultimosDigitos: '**** **** **** 1234', vencimiento: '12/26' },
@@ -120,9 +123,54 @@ export default function MiCuenta() {
     navigate('/login');
   };
 
+  const handleCancelarReserva = (id) => {
+    if (!window.confirm('¿Estás seguro de que deseas cancelar esta reservación?')) return;
+
+    const allReservations = getReservaciones();
+    const resIndex = allReservations.findIndex(r => r.id === id);
+    if (resIndex === -1) return;
+
+    const res = allReservations[resIndex];
+    const hoy = new Date();
+    const entrada = new Date(`${res.fechaEntrada}T00:00:00`); // Consideramos la medianoche del día de entrada
+    const diffHours = (entrada - hoy) / (1000 * 60 * 60);
+
+    if (diffHours < 0) {
+      return alert('No puedes cancelar una reservación que ya ha comenzado.');
+    }
+
+    let porcentajePenalizacion = 0;
+    if (diffHours < 24) {
+      const confirmarTarde = window.confirm('Estás cancelando con menos de 24 horas de anticipación. Se te aplicará una penalización del 20%. ¿Deseas continuar?');
+      if (!confirmarTarde) return;
+      porcentajePenalizacion = 0.20;
+    }
+
+    const totalNum = Number(res.total.replace(/[^0-9.-]+/g, ""));
+    const penalizacion = totalNum * porcentajePenalizacion;
+    const montoReembolso = totalNum - penalizacion;
+
+    // Cambiamos estado y le añadimos un objeto "reembolso"
+    allReservations[resIndex] = {
+      ...res,
+      estado: 'Cancelada',
+      reembolso: { estado: 'Pendiente', monto: `$${montoReembolso.toLocaleString('en-US')}`, penalizacion: `$${penalizacion.toLocaleString('en-US')}` }
+    };
+
+    saveReservaciones(allReservations);
+    setReservations(getReservacionesUsuario(currentUser.id)); // Recargamos el estado visual
+    alert('Reservación cancelada exitosamente. Tu reembolso está en proceso.');
+  };
+
   if (!currentUser) {
     return null; // O un spinner de carga
   }
+
+  const haIniciado = (fecha) => {
+    const hoy = new Date();
+    const entrada = new Date(`${fecha}T00:00:00`);
+    return hoy >= entrada;
+  };
 
   return (
     <div className="flex flex-col items-center py-20 px-5 min-h-[80vh] bg-gray-50">
@@ -234,15 +282,38 @@ export default function MiCuenta() {
         {activeTab === 'reservaciones' && (
           <div className="w-full max-w-xl">
             <h3 className="text-xl font-bold mb-6 text-left">Mis Reservaciones</h3>
+            
+            <div className="bg-brand-primary/5 border border-brand-primary/20 text-gray-700 p-4 rounded-lg text-sm mb-6 flex gap-3 text-left">
+              <span className="text-xl">ℹ️</span>
+              <p>
+                <strong>Política de Cancelación:</strong> Cancela con al menos 24 horas de anticipación para recibir un <strong>reembolso total</strong>. Si cancelas después de este límite, se aplicará un <strong>cargo del 20%</strong> sobre el total de tu reserva.
+              </p>
+            </div>
+
             {reservations.length > 0 ? (
               <div className="space-y-4">
                 {reservations.map((res) => (
                   <div key={res.id} className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-100 text-left">
                     <p className="font-bold text-brand-primary">{res.habitacion}</p>
                     <p className="text-sm text-gray-600">Entrada: {res.fechaEntrada} | Salida: {res.fechaSalida}</p>
-                    <p className="text-sm text-gray-600">Estado: <span className={`font-semibold ${res.estado === 'Confirmada' ? 'text-green-600' : 'text-yellow-600'}`}>{res.estado}</span></p>
+                    <p className="text-sm text-gray-600">Estado: <span className={`font-semibold ${res.estado === 'Confirmada' ? 'text-green-600' : res.estado === 'Cancelada' ? 'text-red-600' : 'text-yellow-600'}`}>{res.estado}</span></p>
                     <p className="text-sm text-gray-600">Total: <span className="font-bold">{res.total}</span> {res.metodoPago && `(Vía ${res.metodoPago})`}</p>
-                    <button className="mt-2 text-xs text-blue-600 hover:underline">Ver Detalles</button>
+                    
+                    <div className="mt-3 flex gap-4">
+                      <button onClick={() => setSelectedReserva(res)} className="text-xs font-bold text-brand-primary hover:text-brand-secondary hover:underline uppercase tracking-wider">Ver Detalles</button>
+                      {res.estado === 'Confirmada' && !haIniciado(res.fechaEntrada) && (
+                        <button onClick={() => handleCancelarReserva(res.id)} className="text-xs font-bold text-red-600 hover:underline uppercase tracking-wider">Cancelar Reserva</button>
+                      )}
+                    </div>
+                    
+                    {res.estado === 'Cancelada' && res.reembolso && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-xs text-gray-600">
+                          <span className="font-bold">Reembolso:</span> <span className={res.reembolso.estado === 'Aprobado' ? 'text-green-600 font-bold' : 'text-orange-500 font-bold'}>{res.reembolso.estado}</span> ({res.reembolso.monto})
+                        </p>
+                        {res.reembolso.penalizacion !== '$0' && <p className="text-xs text-red-500">Penalización aplicada: {res.reembolso.penalizacion}</p>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -280,6 +351,57 @@ export default function MiCuenta() {
           Cerrar Sesión
         </button>
       </div>
+
+      {/* MODAL DETALLES DE RESERVACIÓN */}
+      {selectedReserva && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 md:p-8 relative">
+            <button 
+              onClick={() => setSelectedReserva(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 text-2xl font-bold cursor-pointer transition-colors"
+            >
+              &times;
+            </button>
+            
+            <h3 className="text-2xl font-bold text-brand-primary mb-1 text-center md:text-left">Detalles de la Reserva</h3>
+            <p className="text-sm text-gray-500 mb-6 border-b border-gray-100 pb-4 text-center md:text-left">ID: #{selectedReserva.id}</p>
+            
+            <div className="space-y-4 text-left mb-8">
+              <div className="flex justify-between items-center"><span className="font-semibold text-gray-500 text-sm">Habitación:</span> <span className="text-gray-800 font-bold">{selectedReserva.habitacion}</span></div>
+              <div className="flex justify-between items-center"><span className="font-semibold text-gray-500 text-sm">Check-in:</span> <span className="text-gray-800">{selectedReserva.fechaEntrada}</span></div>
+              <div className="flex justify-between items-center"><span className="font-semibold text-gray-500 text-sm">Check-out:</span> <span className="text-gray-800">{selectedReserva.fechaSalida}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="font-semibold text-gray-500 text-sm">Estado:</span> 
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${selectedReserva.estado === 'Confirmada' ? 'bg-green-100 text-green-700' : selectedReserva.estado === 'Cancelada' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  {selectedReserva.estado}
+                </span>
+              </div>
+              <div className="flex justify-between items-center"><span className="font-semibold text-gray-500 text-sm">Método de Pago:</span> <span className="text-gray-800">{selectedReserva.metodoPago}</span></div>
+              <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2">
+                <span className="font-bold text-gray-700">Total Pagado:</span> <span className="text-brand-primary font-bold text-lg">{selectedReserva.total}</span>
+              </div>
+            </div>
+
+            {selectedReserva.estado === 'Cancelada' && selectedReserva.reembolso && (
+              <div className="bg-red-50 p-4 rounded-lg mb-8 border border-red-100 text-sm">
+                <h4 className="font-bold text-red-700 mb-3 border-b border-red-200 pb-2">Información de Cancelación</h4>
+                <div className="flex justify-between mb-2"><span className="text-red-600">Penalización aplicada:</span> <span className="font-semibold text-red-800">{selectedReserva.reembolso.penalizacion}</span></div>
+                <div className="flex justify-between mb-2"><span className="text-red-600">Monto a Reembolsar:</span> <span className="font-semibold text-red-800">{selectedReserva.reembolso.monto}</span></div>
+                <div className="flex justify-between mt-3 pt-2 border-t border-red-100"><span className="font-bold text-red-700">Estado del Reembolso:</span> <span className={`font-bold ${selectedReserva.reembolso.estado === 'Aprobado' ? 'text-green-600' : 'text-orange-500'}`}>{selectedReserva.reembolso.estado}</span></div>
+              </div>
+            )}
+            
+            <div className="flex justify-center">
+              <button 
+                onClick={() => setSelectedReserva(null)}
+                className="bg-brand-primary hover:bg-brand-secondary text-white font-bold py-3 px-8 rounded-lg uppercase tracking-wider text-xs shadow-md transition-all w-full"
+              >
+                Cerrar Detalles
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
