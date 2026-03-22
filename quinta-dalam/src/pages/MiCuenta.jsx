@@ -60,7 +60,6 @@ export default function MiCuenta() {
   }, [activeTab]);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
     if (!currentUser) {
       navigate('/login');
     }
@@ -132,7 +131,7 @@ export default function MiCuenta() {
 
     const res = allReservations[resIndex];
     const hoy = new Date();
-    const entrada = new Date(`${res.fechaEntrada}T00:00:00`); // Consideramos la medianoche del día de entrada
+    const entrada = new Date(`${res.fechaEntrada}T15:00:00`); // Consideramos la hora de check-in a las 3 PM
     const diffHours = (entrada - hoy) / (1000 * 60 * 60);
 
     if (diffHours < 0) {
@@ -141,9 +140,9 @@ export default function MiCuenta() {
 
     let porcentajePenalizacion = 0;
     if (diffHours < 24) {
-      const confirmarTarde = window.confirm('Estás cancelando con menos de 24 horas de anticipación. Se te aplicará una penalización del 20%. ¿Deseas continuar?');
+      const confirmarTarde = window.confirm('Estás cancelando con menos de 24 horas de anticipación. Se te aplicará una penalización del 10%. ¿Deseas continuar?');
       if (!confirmarTarde) return;
-      porcentajePenalizacion = 0.20;
+      porcentajePenalizacion = 0.10;
     }
 
     const totalNum = Number(res.total.replace(/[^0-9.-]+/g, ""));
@@ -168,7 +167,7 @@ export default function MiCuenta() {
 
   const haIniciado = (fecha) => {
     const hoy = new Date();
-    const entrada = new Date(`${fecha}T00:00:00`);
+    const entrada = new Date(`${fecha}T15:00:00`); // La reserva inicia a las 3 PM
     return hoy >= entrada;
   };
 
@@ -283,10 +282,10 @@ export default function MiCuenta() {
           <div className="w-full max-w-xl">
             <h3 className="text-xl font-bold mb-6 text-left">Mis Reservaciones</h3>
             
-            <div className="bg-brand-primary/5 border border-brand-primary/20 text-gray-700 p-4 rounded-lg text-sm mb-6 flex gap-3 text-left">
+            <div className="bg-brand-primary/5 border border-brand-primary/20 text-gray-700 p-4 rounded-lg text-sm mb-6 flex gap-3 text-left animate-fade-in">
               <span className="text-xl">ℹ️</span>
               <p>
-                <strong>Política de Cancelación:</strong> Cancela con al menos 24 horas de anticipación para recibir un <strong>reembolso total</strong>. Si cancelas después de este límite, se aplicará un <strong>cargo del 20%</strong> sobre el total de tu reserva.
+                <strong>Política de Cancelación:</strong> La hora de check-in es a las 3:00 PM. Cancela antes de las <strong>3:00 PM del día anterior</strong> a tu llegada para recibir un <strong>reembolso total</strong>. Si cancelas después de este límite, se aplicará un <strong>cargo del 10%</strong>.
               </p>
             </div>
 

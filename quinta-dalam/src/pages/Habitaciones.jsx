@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getHabitaciones } from '../data/habitaciones';
 import { getReservaciones } from '../data/reservaciones';
-import { useEffect } from 'react';
 
 export default function Habitaciones() {
   const [habitaciones] = useState(() => getHabitaciones());
@@ -10,10 +9,6 @@ export default function Habitaciones() {
   const [fechaEntrada, setFechaEntrada] = useState('');
   const [fechaSalida, setFechaSalida] = useState('');
   const [filtrosFechas, setFiltrosFechas] = useState({ entrada: '', salida: '' });
-
-  useEffect(() => {
-      window.scrollTo(0, 0);
-    }, []);
 
   const reservaciones = getReservaciones();
 

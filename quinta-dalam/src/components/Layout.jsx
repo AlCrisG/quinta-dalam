@@ -36,6 +36,11 @@ export default function Layout() {
     };
   }, [location.pathname, usuario]);
 
+  // Efecto global para hacer scroll al inicio al cambiar de ruta
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const getLinkClass = (path) => {
     const isActive = location.pathname === path;
     const baseClass = "relative z-10 px-5 h-full flex items-center text-center text-white/90 hover:text-white transition-colors duration-300 font-medium tracking-wide text-sm uppercase";

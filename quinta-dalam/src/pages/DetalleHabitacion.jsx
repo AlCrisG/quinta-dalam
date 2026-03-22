@@ -17,8 +17,6 @@ export default function DetalleHabitacion() {
   const hasAutoBooked = useRef(false);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-    
     // Activamos la animación de entrada después de montar el componente
     const timer = setTimeout(() => setIsVisible(true), 50);
 

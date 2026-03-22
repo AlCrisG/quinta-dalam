@@ -32,7 +32,6 @@ export default function AdminPanel() {
   const hoy = fechaActual.toISOString().split('T')[0];
 
   useEffect(() => {
-    window.scrollTo(0, 0);
     if (!currentUser || currentUser.rol !== 'admin') {
       navigate('/'); // Redirige si no es admin
     }
