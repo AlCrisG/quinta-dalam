@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,100..900;1,100..900&family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Zilla+Slab:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #490149;
+  --color-brand-secondary: #2E002E;
+}
+
+@layer base {
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar { display: none; }
+  h1, h2, h3 { 
+    @apply font-['Zilla_Slab']; 
+  }
+}
+
+/* --- CSS del Carrusel --- */
+.carrusel {
+    width: 100%; height: calc(100vh - 80px); margin: 0; overflow: hidden; position: relative;
+}
+.carrusel ul {
+    display: flex; padding: 0; width: 400%; height: 100%;
+    animation: slide 20s infinite alternate ease-in-out;
+}
+.carrusel li {
+    width: 100%; height: 100%; list-style: none; position: relative;
+}
+.carrusel img {
+    width: 100%; height: 100%; object-fit: cover; filter: brightness(0.4);
+}
+.texto-carrusel {
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    width: 100%; position: absolute; top: 40%; color: white;
+}
+.texto-carrusel h2 { font-size: 3rem; text-align: center; }
+.texto-carrusel a {
+    border-radius: 10px; margin-top: 25px; background-color: rgb(73, 1, 73); padding: 15px 30px; text-decoration: none; color: white; transition: background-color 0.3s;
+}
+.texto-carrusel a:hover { background-color: rgb(46, 0, 46); }
+
+@keyframes slide {
+    0% { margin-left: 0;} 20% { margin-left: 0;}
+    25% { margin-left: -100%;} 45% { margin-left: -100%;}
+    50% { margin-left: -200%;} 70% { margin-left: -200%;}
+    75% { margin-left: -300%;} 100% { margin-left: -300%;}
+}
+
+.flechas-bajar {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center;
+}
+.flechas-bajar span {
+    width: 20px; height: 20px; border-bottom: 3px solid white; border-right: 3px solid white;
+    transform: rotate(45deg); margin: -5px; animation: bajar 2s infinite;
+}
+.flechas-bajar span:nth-child(2) { animation-delay: -0.2s; }
+.flechas-bajar span:nth-child(3) { animation-delay: -0.4s; }
+
+@keyframes bajar {
+    0% { opacity: 0; transform: rotate(45deg) translate(-15px, -15px); }
+    50% { opacity: 1; }
+    100% { opacity: 0; transform: rotate(45deg) translate(15px, 15px); }
+}
+
+@media(max-width: 991px) {
+    .carrusel { width: 100% }
+}
